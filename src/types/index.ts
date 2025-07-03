@@ -34,3 +34,29 @@ export interface Day {
   start_time: string;
   end_time: string;
 }
+
+export interface Student {
+  id: number;
+  first_name: string;
+  last_name: string;
+  classroom: string;
+  registration_number: string;
+  first_enrollment_date: string;
+  parent1_name?: string;
+  parent2_name?: string;
+  age?: number;
+  sex?: 'M' | 'F';
+  grades: number[];
+  absences: { date: string; justified: boolean; reason?: string }[];
+  disciplinary_notes: string[];
+  homework_submissions: { date: string; submitted: boolean; grade?: number }[];
+  extra_activities: string[];
+  teacher_comments: { comment: string; score: number; date: string }[];
+  primary_school?: number;
+  school_id?: number;
+  classroom_id?: number;
+  parent_occupation_level?: number;
+  address_level?: number;
+  course_subjects?: string[];
+  predicted_class?: string;
+}

@@ -1,4 +1,4 @@
-import { Student } from "./page";
+import { Student } from "@/types";
 
 export const mockStudents: Student[] = [
   // Étudiants à haut potentiel

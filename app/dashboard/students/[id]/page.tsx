@@ -1,19 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  AlertCircle, 
-  ArrowLeft, 
-  Brain, 
-  User, 
-  GraduationCap, 
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Brain,
+  User,
+  GraduationCap,
   Calendar,
   TrendingUp,
   Star,
@@ -25,40 +25,17 @@ import {
   BookOpen,
   Activity,
   BarChart,
-  CheckCircle
-} from 'lucide-react';
-import { toast } from 'sonner';
-import Cookies from 'js-cookie';
-import axios from 'axios';
-import { mockStudents } from './students';
+  CheckCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import Cookies from "js-cookie";
+import axios from "axios";
+import { mockStudents } from "../students";
+import { Student } from "@/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const FLASK_AI_API_URL = process.env.FLASK_AI_API_URL || 'http://localhost:8000';
-
-export interface Student {
-  id: number;
-  first_name: string;
-  last_name: string;
-  classroom: string;
-  registration_number: string;
-  first_enrollment_date: string;
-  parent1_name?: string;
-  parent2_name?: string;
-  age?: number;
-  sex?: 'M' | 'F';
-  grades: number[];
-  absences: { date: string; justified: boolean; reason?: string }[];
-  disciplinary_notes: string[];
-  homework_submissions: { date: string; submitted: boolean; grade?: number }[];
-  extra_activities: string[];
-  teacher_comments: { comment: string; score: number; date: string }[];
-  primary_school?: number;
-  school_id?: number;
-  classroom_id?: number;
-  parent_occupation_level?: number;
-  address_level?: number;
-  course_subjects?: string[];
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const FLASK_AI_API_URL =
+  process.env.FLASK_AI_API_URL || "http://localhost:8000";
 
 interface PredictionResponse {
   confidence: number;
@@ -76,39 +53,62 @@ interface PredictionResponse {
 const calculateMetrics = (student: Student) => {
   const currentDate = new Date();
   const enrollmentDate = new Date(student.first_enrollment_date);
-  
-  const enrollment_duration = Math.round((currentDate.getTime() - enrollmentDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-  const mark_average = student.grades.length > 0 ? student.grades.reduce((a, b) => a + b, 0) / student.grades.length : 0;
-  
+
+  const enrollment_duration = Math.round(
+    (currentDate.getTime() - enrollmentDate.getTime()) /
+      (1000 * 60 * 60 * 24 * 30)
+  );
+  const mark_average =
+    student.grades.length > 0
+      ? student.grades.reduce((a, b) => a + b, 0) / student.grades.length
+      : 0;
+
   const total_school_days = 180;
-  const absence_percentage = (student.absences.length / total_school_days) * 100;
-  const justified_absences = student.absences.filter(abs => abs.justified).length;
-  const absence_justified_percentage = student.absences.length > 0 ? (justified_absences / student.absences.length) * 100 : 0;
+  const absence_percentage =
+    (student.absences.length / total_school_days) * 100;
+  const justified_absences = student.absences.filter(
+    (abs) => abs.justified
+  ).length;
+  const absence_justified_percentage =
+    student.absences.length > 0
+      ? (justified_absences / student.absences.length) * 100
+      : 0;
   const attendance_rate = 100 - absence_percentage;
-  
+
   const has_behavior_issues = student.disciplinary_notes.length > 0 ? 1 : 0;
-  
+
   const total_homework = student.homework_submissions.length;
-  const submitted_homework = student.homework_submissions.filter(hw => hw.submitted).length;
-  const submission_rate = total_homework > 0 ? (submitted_homework / total_homework) * 100 : 0;
-  
-  const graded_homework = student.homework_submissions.filter(hw => hw.submitted && hw.grade);
-  const correctness_rate = graded_homework.length > 0 
-    ? graded_homework.reduce((sum, hw) => sum + (hw.grade || 0), 0) / graded_homework.length 
-    : 0;
-  
-  const teacher_comment_score = student.teacher_comments.length > 0
-    ? student.teacher_comments.reduce((sum, comment) => sum + comment.score, 0) / student.teacher_comments.length
-    : 3;
-  
+  const submitted_homework = student.homework_submissions.filter(
+    (hw) => hw.submitted
+  ).length;
+  const submission_rate =
+    total_homework > 0 ? (submitted_homework / total_homework) * 100 : 0;
+
+  const graded_homework = student.homework_submissions.filter(
+    (hw) => hw.submitted && hw.grade
+  );
+  const correctness_rate =
+    graded_homework.length > 0
+      ? graded_homework.reduce((sum, hw) => sum + (hw.grade || 0), 0) /
+        graded_homework.length
+      : 0;
+
+  const teacher_comment_score =
+    student.teacher_comments.length > 0
+      ? student.teacher_comments.reduce(
+          (sum, comment) => sum + comment.score,
+          0
+        ) / student.teacher_comments.length
+      : 3;
+
   const extra_activity_count = student.extra_activities.length;
   const activity_score = extra_activity_count * 2;
-  
+
   const evaluation_count = student.grades.length;
   const is_available = 1;
   const course_count = student.course_subjects?.length || 5;
   const course_difficulty = Math.ceil(course_count / 2);
-  
+
   return {
     enrollment_duration,
     mark: mark_average,
@@ -125,14 +125,14 @@ const calculateMetrics = (student: Student) => {
     extra_activity_count,
     activity_score,
     course_count,
-    course_difficulty
+    course_difficulty,
   };
 };
 
 export default function StudentDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
-  const token = Cookies.get('token');
+  const token = Cookies.get("token");
   const [student, setStudent] = useState<Student | null>(null);
   const [metrics, setMetrics] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -144,19 +144,23 @@ export default function StudentDetailsPage() {
     const fetchStudent = async () => {
       setLoading(true);
       try {
-        const foundStudent = mockStudents.find((s) => s.id === parseInt(id as string));
+        const foundStudent = mockStudents.find(
+          (s) => s.id === parseInt(id as string)
+        );
         if (foundStudent) {
           setStudent(foundStudent);
           const calculatedMetrics = calculateMetrics(foundStudent);
           setMetrics(calculatedMetrics);
-          toast.success(`Détails de ${foundStudent.first_name} ${foundStudent.last_name} chargés avec succès.`);
+          toast.success(
+            `Détails de ${foundStudent.first_name} ${foundStudent.last_name} chargés avec succès.`
+          );
         } else {
-          setError('Étudiant non trouvé.');
-          toast.error('Étudiant non trouvé.');
+          setError("Étudiant non trouvé.");
+          toast.error("Étudiant non trouvé.");
         }
       } catch (err) {
-        setError('Échec du chargement des détails de l\'étudiant.');
-        toast.error('Échec du chargement des détails de l\'étudiant.');
+        setError("Échec du chargement des détails de l'étudiant.");
+        toast.error("Échec du chargement des détails de l'étudiant.");
       } finally {
         setLoading(false);
       }
@@ -170,11 +174,7 @@ export default function StudentDetailsPage() {
     setPredicting(true);
     try {
       const predictionData = {
-        primary_school: student.primary_school || 1,
-        school_id: student.school_id || 1,
-        classroom_id: student.classroom_id || 1,
-        sex: student.sex === 'M' ? 1 : 0,
-        age: student.age || 12,
+        sex: student.sex === "M" ? 1 : 0,
         enrollment_duration: metrics.enrollment_duration,
         mark: metrics.mark,
         average_grade: metrics.average_grade,
@@ -192,20 +192,29 @@ export default function StudentDetailsPage() {
         address_level: student.address_level || 2,
         course_count: metrics.course_count,
         course_difficulty: metrics.course_difficulty,
+        age: student.age || 12,
       };
 
-      const response = await axios.post(`${FLASK_AI_API_URL}/predict`, predictionData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.post(
+        `${FLASK_AI_API_URL}/predict`,
+        predictionData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       setPrediction(response.data);
-      toast.success(`Prédiction effectuée : ${getStatusText(response.data.predicted_category)}`);
+      toast.success(
+        `Prédiction effectuée : ${getStatusText(
+          response.data.predicted_category
+        )}`
+      );
     } catch (err) {
-      console.error('Erreur de prédiction:', err);
-      setError('Échec de la prédiction. Veuillez réessayer.');
-      toast.error('Échec de la prédiction.');
+      console.error("Erreur de prédiction:", err);
+      setError("Échec de la prédiction. Veuillez réessayer.");
+      toast.error("Échec de la prédiction.");
     } finally {
       setPredicting(false);
     }
@@ -214,26 +223,26 @@ export default function StudentDetailsPage() {
   const getStatusColor = (category: number) => {
     switch (category) {
       case 1:
-        return 'bg-emerald-500';
+        return "bg-emerald-500";
       case 2:
-        return 'bg-amber-500';
+        return "bg-amber-500";
       case 0:
-        return 'bg-red-500';
+        return "bg-red-500";
       default:
-        return 'bg-gray-500';
+        return "bg-gray-500";
     }
   };
 
   const getStatusText = (category: number) => {
     switch (category) {
       case 1:
-        return 'À haut potentiel';
+        return "À haut potentiel";
       case 2:
-        return 'Moyen';
+        return "Moyen";
       case 0:
-        return 'À risque';
+        return "À risque";
       default:
-        return 'Non évalué';
+        return "Non évalué";
     }
   };
 
@@ -250,7 +259,9 @@ export default function StudentDetailsPage() {
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           />
-          <p className="text-slate-600 font-medium">Chargement des données...</p>
+          <p className="text-slate-600 font-medium">
+            Chargement des données...
+          </p>
         </motion.div>
       </div>
     );
@@ -268,12 +279,12 @@ export default function StudentDetailsPage() {
           <Button
             variant="ghost"
             className="group flex items-center space-x-2 text-slate-600 hover:text-slate-900 hover:bg-white/50"
-            onClick={() => router.push('/dashboard/students')}
+            onClick={() => router.push("/dashboard/students")}
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>Retour à la liste</span>
           </Button>
-          
+
           {student && (
             <Button
               onClick={handlePredict}
@@ -281,7 +292,7 @@ export default function StudentDetailsPage() {
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
             >
               <Brain className="w-4 h-4 mr-2" />
-              {predicting ? 'Analyse en cours...' : 'Analyser le potentiel'}
+              {predicting ? "Analyse en cours..." : "Analyser le potentiel"}
             </Button>
           )}
         </div>
@@ -289,7 +300,9 @@ export default function StudentDetailsPage() {
         {error && (
           <Alert className="mb-6 border-red-200 bg-red-50">
             <AlertCircle className="w-4 h-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
+            <AlertDescription className="text-red-800">
+              {error}
+            </AlertDescription>
           </Alert>
         )}
 
@@ -319,25 +332,46 @@ export default function StudentDetailsPage() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex items-center space-x-4">
-                      <div className={`w-4 h-4 rounded-full ${getStatusColor(prediction.predicted_category)}`} />
+                      <div
+                        className={`w-4 h-4 rounded-full ${getStatusColor(
+                          prediction.predicted_category
+                        )}`}
+                      />
                       <div>
-                        <h3 className="font-semibold text-slate-900">Catégorie prédite</h3>
-                        <p className="text-slate-600">{getStatusText(prediction.predicted_category)}</p>
+                        <h3 className="font-semibold text-slate-900">
+                          Catégorie prédite
+                        </h3>
+                        <p className="text-slate-600">
+                          {getStatusText(prediction.predicted_category)}
+                        </p>
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-slate-600 mb-2">Score de confiance</h3>
-                      <p className="text-lg font-semibold text-slate-900">{(prediction.confidence * 100).toFixed(2)}%</p>
+                      <h3 className="text-sm font-medium text-slate-600 mb-2">
+                        Score de confiance
+                      </h3>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {(prediction.confidence * 100).toFixed(2)}%
+                      </p>
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-slate-600 mb-2">Date de prédiction</h3>
-                      <p className="text-lg text-slate-900">{new Date(prediction.timestamp).toLocaleString('fr-FR')}</p>
+                      <h3 className="text-sm font-medium text-slate-600 mb-2">
+                        Date de prédiction
+                      </h3>
+                      <p className="text-lg text-slate-900">
+                        {new Date(prediction.timestamp).toLocaleString("fr-FR")}
+                      </p>
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-slate-600 mb-2">Recommandations</h3>
+                      <h3 className="text-sm font-medium text-slate-600 mb-2">
+                        Recommandations
+                      </h3>
                       <ul className="space-y-2">
                         {prediction.recommendations.map((rec, index) => (
-                          <li key={index} className="flex items-center space-x-2">
+                          <li
+                            key={index}
+                            className="flex items-center space-x-2"
+                          >
                             <CheckCircle className="w-4 h-4 text-green-600" />
                             <span className="text-slate-700">{rec}</span>
                           </li>
@@ -356,12 +390,16 @@ export default function StudentDetailsPage() {
                     <User className="w-8 h-8" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold">{student.first_name} {student.last_name}</h1>
-                    <p className="text-blue-100">{student.classroom} • {student.registration_number}</p>
+                    <h1 className="text-2xl font-bold">
+                      {student.first_name} {student.last_name}
+                    </h1>
+                    <p className="text-blue-100">
+                      {student.classroom} • {student.registration_number}
+                    </p>
                   </div>
                 </div>
               </div>
-              
+
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="flex items-center space-x-3">
@@ -375,22 +413,34 @@ export default function StudentDetailsPage() {
                     <Users className="w-5 h-5 text-blue-600" />
                     <div>
                       <p className="text-sm text-slate-600">Sexe</p>
-                      <p className="font-semibold">{student.sex === 'M' ? 'Masculin' : 'Féminin'}</p>
+                      <p className="font-semibold">
+                        {student.sex === "M" ? "Masculin" : "Féminin"}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Calendar className="w-5 h-5 text-blue-600" />
                     <div>
                       <p className="text-sm text-slate-600">Inscription</p>
-                      <p className="font-semibold">{new Date(student.first_enrollment_date).toLocaleDateString('fr-FR')}</p>
+                      <p className="font-semibold">
+                        {new Date(
+                          student.first_enrollment_date
+                        ).toLocaleDateString("fr-FR")}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Users className="w-5 h-5 text-blue-600" />
                     <div>
                       <p className="text-sm text-slate-600">Parents</p>
-                      <p className="font-semibold text-sm">{student.parent1_name}</p>
-                      {student.parent2_name && <p className="font-semibold text-sm">{student.parent2_name}</p>}
+                      <p className="font-semibold text-sm">
+                        {student.parent1_name}
+                      </p>
+                      {student.parent2_name && (
+                        <p className="font-semibold text-sm">
+                          {student.parent2_name}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -403,8 +453,12 @@ export default function StudentDetailsPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-slate-600">Moyenne générale</p>
-                        <p className="text-2xl font-bold text-slate-900">{metrics.average_grade.toFixed(1)}/20</p>
+                        <p className="text-sm text-slate-600">
+                          Moyenne générale
+                        </p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          {metrics.average_grade.toFixed(1)}/20
+                        </p>
                       </div>
                       <TrendingUp className="w-8 h-8 text-emerald-500" />
                     </div>
@@ -415,8 +469,12 @@ export default function StudentDetailsPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-slate-600">Taux de présence</p>
-                        <p className="text-2xl font-bold text-slate-900">{metrics.attendance_rate.toFixed(1)}%</p>
+                        <p className="text-sm text-slate-600">
+                          Taux de présence
+                        </p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          {metrics.attendance_rate.toFixed(1)}%
+                        </p>
                       </div>
                       <Clock className="w-8 h-8 text-blue-500" />
                     </div>
@@ -428,7 +486,9 @@ export default function StudentDetailsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-slate-600">Devoirs rendus</p>
-                        <p className="text-2xl font-bold text-slate-900">{metrics.submission_rate.toFixed(1)}%</p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          {metrics.submission_rate.toFixed(1)}%
+                        </p>
                       </div>
                       <Target className="w-8 h-8 text-amber-500" />
                     </div>
@@ -439,8 +499,12 @@ export default function StudentDetailsPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-slate-600">Activités extra</p>
-                        <p className="text-2xl font-bold text-slate-900">{metrics.extra_activity_count}</p>
+                        <p className="text-sm text-slate-600">
+                          Activités extra
+                        </p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          {metrics.extra_activity_count}
+                        </p>
                       </div>
                       <Activity className="w-8 h-8 text-purple-500" />
                     </div>
@@ -460,8 +524,13 @@ export default function StudentDetailsPage() {
                 <CardContent>
                   <div className="space-y-2">
                     {student.grades.slice(-5).map((grade, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-slate-50 rounded">
-                        <span className="text-sm text-slate-600">Évaluation {student.grades.length - 4 + index}</span>
+                      <div
+                        key={index}
+                        className="flex justify-between items-center p-2 bg-slate-50 rounded"
+                      >
+                        <span className="text-sm text-slate-600">
+                          Évaluation {student.grades.length - 4 + index}
+                        </span>
                         <span className="font-semibold">{grade}/20</span>
                       </div>
                     ))}
@@ -479,10 +548,21 @@ export default function StudentDetailsPage() {
                 <CardContent>
                   <div className="space-y-2">
                     {student.absences.slice(-5).map((absence, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-slate-50 rounded">
-                        <span className="text-sm text-slate-600">{new Date(absence.date).toLocaleDateString('fr-FR')}</span>
-                        <span className={`px-2 py-1 rounded text-xs ${absence.justified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {absence.justified ? 'Justifiée' : 'Non justifiée'}
+                      <div
+                        key={index}
+                        className="flex justify-between items-center p-2 bg-slate-50 rounded"
+                      >
+                        <span className="text-sm text-slate-600">
+                          {new Date(absence.date).toLocaleDateString("fr-FR")}
+                        </span>
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            absence.justified
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {absence.justified ? "Justifiée" : "Non justifiée"}
                         </span>
                       </div>
                     ))}
@@ -502,12 +582,17 @@ export default function StudentDetailsPage() {
                 <CardContent>
                   <div className="space-y-2">
                     {student.extra_activities.map((activity, index) => (
-                      <div key={index} className="p-2 bg-purple-50 rounded text-purple-800 font-medium">
+                      <div
+                        key={index}
+                        className="p-2 bg-purple-50 rounded text-purple-800 font-medium"
+                      >
                         {activity}
                       </div>
                     ))}
                     {student.extra_activities.length === 0 && (
-                      <p className="text-slate-500 italic">Aucune activité enregistrée</p>
+                      <p className="text-slate-500 italic">
+                        Aucune activité enregistrée
+                      </p>
                     )}
                   </div>
                 </CardContent>
@@ -523,12 +608,17 @@ export default function StudentDetailsPage() {
                 <CardContent>
                   <div className="space-y-2">
                     {student.disciplinary_notes.map((note, index) => (
-                      <div key={index} className="p-2 bg-red-50 rounded text-red-800 text-sm">
+                      <div
+                        key={index}
+                        className="p-2 bg-red-50 rounded text-red-800 text-sm"
+                      >
                         {note}
                       </div>
                     ))}
                     {student.disciplinary_notes.length === 0 && (
-                      <p className="text-green-600 font-medium">Aucune note disciplinaire</p>
+                      <p className="text-green-600 font-medium">
+                        Aucune note disciplinaire
+                      </p>
                     )}
                   </div>
                 </CardContent>
@@ -549,10 +639,19 @@ export default function StudentDetailsPage() {
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center space-x-2">
                           {[...Array(5)].map((_, i) => (
-                            <Star key={i} className={`w-4 h-4 ${i < comment.score ? 'text-amber-400 fill-current' : 'text-slate-300'}`} />
+                            <Star
+                              key={i}
+                              className={`w-4 h-4 ${
+                                i < comment.score
+                                  ? "text-amber-400 fill-current"
+                                  : "text-slate-300"
+                              }`}
+                            />
                           ))}
                         </div>
-                        <span className="text-sm text-slate-500">{new Date(comment.date).toLocaleDateString('fr-FR')}</span>
+                        <span className="text-sm text-slate-500">
+                          {new Date(comment.date).toLocaleDateString("fr-FR")}
+                        </span>
                       </div>
                       <p className="text-slate-700">{comment.comment}</p>
                     </div>
